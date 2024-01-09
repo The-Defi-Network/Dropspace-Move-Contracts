@@ -143,4 +143,72 @@ module YourAddress::NFTSale {
         // Update the owner wallet address
         nft_sale.owner_wallet = new_owner_wallet;
     }
+
+    // Tests
+
+    // Test initialization of the NFT sale
+    #[test]
+    public fun test_init_nft_sale() {
+        // Define test signer
+        let test_account = signer::create_signer(@0x1);
+
+        // Call init_nft_sale with test parameters
+        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri".to_vec(), @0x2, @0x3);
+
+        // Assertions to check if the sale was initialized correctly
+        let nft_sale = borrow_global<NFTForSale>(@0x3);
+        assert!(nft_sale.next_id == 0);
+        assert!(nft_sale.total_sold == 0);
+        assert!(nft_sale.total_supply == 100);
+        assert!(nft_sale.max_nfts_per_tx == 5);
+        assert!(nft_sale.price_per_nft == 1000);
+        assert!(nft_sale.sale_start == 0);
+        assert!(nft_sale.base_uri == b"test_uri".to_vec());
+        assert!(nft_sale.dev_wallet == @0x2);
+        assert!(nft_sale.owner_wallet == @0x3);
+    }
+
+    // Test purchase of NFTs
+    #[test]
+    public fun test_purchase_nft() {
+        // Setup test environment and accounts
+        let test_account = signer::create_signer(@0x1);
+
+        // Initialize NFT sale
+        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri".to_vec(), @0x2, @0x3);
+   
+        // Attempt to purchase NFTs
+        purchase_nft(&test_account, @0x1, 1);
+
+        // Assertions to verify the purchase
+        assert!(nft_sale.next_id == 1);
+        assert!(nft_sale.total_sold == 1);
+        assert!(nft_sale.total_supply == 100);
+        assert!(nft_sale.max_nfts_per_tx == 5);
+        assert!(nft_sale.price_per_nft == 1000);
+        assert!(nft_sale.sale_start == 0);
+        assert!(nft_sale.base_uri == b"test_uri".to_vec());
+        assert!(nft_sale.dev_wallet == @0x2);
+        assert!(nft_sale.owner_wallet == @0x3);
+
+        // Assertions that wallets received the payment
+        assert!(coin::balance<Coin>(@0x3) == 1000);
+        assert!(coin::balance<Coin>(@0x2) == 125000);
+    }
+
+    // Test modification of the owner wallet
+    #[test]
+    public fun test_modify_owner_wallet() {
+        // Setup test environment and accounts
+        let test_account = signer::create_signer(@0x1);
+
+        // Initialize NFT sale
+        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri".to_vec(), @0x2, @0x3);
+
+        // Modify the owner wallet
+        modify_owner_wallet(&test_account, @0x1, @0x4);
+
+        // Assertions to verify the wallet modification    
+        assert!(nft_sale.owner_wallet == @0x4);
+    }
 }
