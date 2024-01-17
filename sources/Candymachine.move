@@ -1,9 +1,9 @@
-module YourAddress::CandyMachine {
+module Dropspace::CandyMachine {
     use std::signer::{self, Signer};
     use aptos_framework::account;
     use aptos_framework::coin::{self, Coin};
     use aptos_framework::coin::MintCapability;
-    use DropspaceSale::NFTForSale::{self, NFTForSale};
+    use Dropspace::NFTForSale::{self, NFTForSale};
 
     struct CandyMachine has key {
         nft_sales: vector<address>, // Addresses of NFTSale contracts
@@ -26,7 +26,7 @@ module YourAddress::CandyMachine {
         max_nfts_per_tx: u64,
         price_per_nft: u64,
         sale_start: u64,
-        base_uri: vector<u8>,
+        base_uri: string,
         dev_wallet: address,
         owner_wallet: address,
         seeds: vector<u8> // Unique seed for each NFT sale
@@ -61,18 +61,18 @@ module YourAddress::CandyMachine {
     public fun test_init_candy_machine(account: &signer) {
         init_candy_machine(account);
         let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
-        assert!(vector::length(&candy_machine.nft_sales) == 0, 0, "CandyMachine should be initialized with empty sales vector");
+        assert!(vector::length(&candy_machine.nft_sales) == 0, 0, b"CandyMachine should be initialized with empty sales vector");
     }
 
     // Test creating an NFT sale
     #[test_only]
     public fun test_create_nft_sale(account: &signer, mint_cap: &MintCapability) {
-        let seeds = b"unique_seed".to_vec();
+        let seeds = vec!(240, 159, 146, 150);
         let dev_wallet = @0x1;
         let owner_wallet = @0x2;
 
         init_candy_machine(account);
-        create_nft_sale(account, 100, 5, 1000, 0, b"https://base.uri".to_vec(), dev_wallet, owner_wallet, seeds);
+        create_nft_sale(account, 100, 5, 1000, 0, b"https://base.uri", dev_wallet, owner_wallet, seeds);
 
         let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
         assert!(vector::length(&candy_machine.nft_sales) == 1, 1, "One NFT sale should have been created");

@@ -1,4 +1,4 @@
-module YourAddress::NFTSale {
+module Dropspace::NFTSale {
     use std::signer::{self, Signer};
     use aptos_framework::timestamp;
     use aptos_framework::coin::{self, Coin};
@@ -68,10 +68,16 @@ module YourAddress::NFTSale {
         coin::transfer_from_sender<Coin>(nft_sale.owner_wallet, owner_payment);
 
         // Mint NFTs
-        for _ in 0..quantity {
-            let metadata_uri = nft_sale.base_uri + &b"/".to_vec() + &nft_sale.next_id.to_string().into_bytes();
+        let i = 0;
+        while (i < quantity) {
+            let metadata_uri = nft_sale.base_uri;
+            string::append(&mut metadata_uri,string::utf8(b"/"));
+            string::append(&mut metadata_uri,num_str(mint_position));
+            string::append(&mut baseuri,string::utf8(b".json"));
+
             nft::mint(account, metadata_uri, owner); // Mint function in the NFT module
             nft_sale.next_id += 1;
+            i+=1;
         }
 
         // Update total sold
