@@ -1,9 +1,11 @@
-module Dropspace::CandyMachine {
-    use std::signer::{self, Signer};
+module dropspace::CandyMachine {
+    use std::vector;
+    use std::string;
+    use std::signer::{Self};
     use aptos_framework::account;
-    use aptos_framework::coin::{self, Coin};
+    use aptos_framework::coin::{Self, Coin};
     use aptos_framework::coin::MintCapability;
-    use Dropspace::NFTForSale::{self, NFTForSale};
+    use dropspace::NFTForSale::{Self, NFTForSale};
 
     struct CandyMachine has key {
         nft_sales: vector<address>, // Addresses of NFTSale contracts
@@ -26,11 +28,11 @@ module Dropspace::CandyMachine {
         max_nfts_per_tx: u64,
         price_per_nft: u64,
         sale_start: u64,
-        base_uri: string,
+        base_uri: vector<u8>,
         dev_wallet: address,
         owner_wallet: address,
         seeds: vector<u8> // Unique seed for each NFT sale
-    ) {
+    ) acquires CandyMachine {
         let (resource, resource_cap) = account::create_resource_account(account, seeds);
         move_to(&resource, ResourceInfo { source: signer::address_of(account), resource_cap });
         
@@ -46,7 +48,7 @@ module Dropspace::CandyMachine {
         );
 
         let candy_machine = borrow_global_mut<CandyMachine>(signer::address_of(account));
-        vector::push_back(&mut candy_machine.nft_sales, resource);
+        vector::push_back(&mut candy_machine.nft_sales, signer::address_of(&resource));
     }
 
     public fun get_nft_sales(account: address): vector<address> acquires CandyMachine {
@@ -75,12 +77,12 @@ module Dropspace::CandyMachine {
         create_nft_sale(account, 100, 5, 1000, 0, b"https://base.uri", dev_wallet, owner_wallet, seeds);
 
         let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
-        assert!(vector::length(&candy_machine.nft_sales) == 1, 1, "One NFT sale should have been created");
+        assert!(vector::length(&candy_machine.nft_sales) == 1, 1, b"One NFT sale should have been created");
         
         let nft_sale_address = *vector::borrow(&candy_machine.nft_sales, 0);
         let nft_sale = borrow_global<NFTForSale>(nft_sale_address);
-        assert!(nft_sale.total_supply == 100, 2, "Total supply should be 100");
-        assert!(nft_sale.max_nfts_per_tx == 5, 3, "Max NFTs per tx should be 5");
-        assert!(nft_sale.price_per_nft == 1000, 4, "Price per NFT should be 1000");
+        assert!(nft_sale.total_supply == 100, 2, b"Total supply should be 100");
+        assert!(nft_sale.max_nfts_per_tx == 5, 3, b"Max NFTs per tx should be 5");
+        assert!(nft_sale.price_per_nft == 1000, 4, b"Price per NFT should be 1000");
     }
 }

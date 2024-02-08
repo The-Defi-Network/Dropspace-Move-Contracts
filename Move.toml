@@ -1,16 +1,24 @@
 [package]
-name = "dropspace_move_contracts"
+name = "dropspace"
 version = "1.0.0"
 authors = []
 
 [addresses]
 candymachine_addr="239bd05464ae52dd35f8073b34b33fe4f6080faedea75c1d618535785bfdbf1c"
+dropspace="0x0"
 
 [dev-addresses]
+candymachine_addr="239bd05464ae52dd35f8073b34b33fe4f6080faedea75c1d618535785bfdbf1c"
+dropspace="0x0"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
 rev = "mainnet"
 subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosToken]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-token"
 
 [dev-dependencies]
