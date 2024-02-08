@@ -1,8 +1,13 @@
-module Dropspace::NFTSale {
-    use std::signer::{self, Signer};
+module dropspace::NFTForSale {
+    use std::signer::{Self};
+    use std::string::{Self, String};
+    use std::vector;
+    use aptos_token::token;
+    use aptos_token::token::TokenDataId;
     use aptos_framework::timestamp;
-    use aptos_framework::coin::{self, Coin};
-    use aptos_framework::nft::{self, NFT};
+    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::coin::{Self, Coin};
+    // use aptos_framework::nft::{Self, NFT};
 
     const DROPSPACE_FEE: u64 = 125000; // 0.125 Aptos in micro-units
     const UINT64_MAX: u64 = 18446744073709551615; // Max value of u64
@@ -44,6 +49,40 @@ module Dropspace::NFTSale {
         move_to(account, nft_sale_data);
     }
 
+    fun num_str(x: u64): vector<u8> {
+        // Initialize an empty vector of u8 values
+        let s = vector::empty<u8>();
+
+        // Check if the int is zero
+        if (x == 0) {
+        // Append the ASCII value of '0' to the vector
+            vector::push_back(&mut s, 48);
+            // Return the vector
+            s
+        } else {
+
+            // Initialize a mutable copy of the int
+            let x_copy = x;
+
+            // Loop until the int is zero
+            while (x_copy > 0) {
+                // Get the remainder of the int divided by 10
+                let r = x_copy % 10;
+                // Subtract the remainder from the int
+                x_copy = x_copy - r;
+                // Divide the int by 10
+                x_copy = x_copy / 10;
+                // Convert the remainder to an ASCII value by adding 48
+                let c: u8 = (r as u8) + 48;
+                // Prepend the ASCII value to the vector
+                vector::push_back(&mut s, c);
+            };
+
+            // Return the vector
+            s
+        }
+    }
+
     // Purchase NFTs
     public fun purchase_nft(account: &signer, owner: address, quantity: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
@@ -60,34 +99,60 @@ module Dropspace::NFTSale {
 
         // Check if the buyer has enough funds
         let total_price = nft_sale.price_per_nft * quantity;
-        let buyer_balance = coin::balance<Coin>(account);
+        let buyer_balance = coin::balance<AptosCoin>(owner);
         assert!(buyer_balance >= total_price, ERROR_INSUFFICIENT_FUNDS); // Insufficient funds
 
         // Transfer funds to dev wallet and owner wallet
-        coin::transfer_from_sender<Coin>(nft_sale.dev_wallet, dropspace_payment);
-        coin::transfer_from_sender<Coin>(nft_sale.owner_wallet, owner_payment);
+        coin::transfer<AptosCoin>(account, nft_sale.dev_wallet, dropspace_payment);
+        coin::transfer<AptosCoin>(account, nft_sale.owner_wallet, owner_payment);
 
         // Mint NFTs
         let i = 0;
         while (i < quantity) {
-            let metadata_uri = nft_sale.base_uri;
+            let metadata_uri = string::utf8(nft_sale.base_uri);
+            let mint_position = nft_sale.next_id;
             string::append(&mut metadata_uri,string::utf8(b"/"));
-            string::append(&mut metadata_uri,num_str(mint_position));
-            string::append(&mut baseuri,string::utf8(b".json"));
+            string::append(&mut metadata_uri,string::utf8(num_str(mint_position)));
+            string::append(&mut metadata_uri,string::utf8(b".json"));
 
-            nft::mint(account, metadata_uri, owner); // Mint function in the NFT module
-            nft_sale.next_id += 1;
-            i+=1;
-        }
+            // nft::mint(account, metadata_uri, owner); // Mint function in the NFT module
+            let token_data_id = token::create_tokendata(
+                account,
+                string::utf8(b""), //collection_name
+                string::utf8(b""), //token_name
+                string::utf8(b""),
+                0,
+                metadata_uri,
+                signer::address_of(account),
+                1,
+                0,
+                // This variable sets if we want to allow mutation for token maximum, uri, royalty, description, and properties.
+                // Here we enable mutation for properties by setting the last boolean in the vector to true.
+                token::create_token_mutability_config(
+                    &vector<bool>[ false, false, false, false, true ]
+                ),
+                // We can use property maps to record attributes related to the token.
+                // In this example, we are using it to record the receiver's address.
+                // We will mutate this field to record the user's address
+                // when a user successfully mints a token in the `mint_nft()` function.
+                vector<String>[string::utf8(b"given_to")],
+                vector<vector<u8>>[b""],
+                vector<String>[ string::utf8(b"address") ],
+            );
+            let token_id = token::mint_token(account, token_data_id, 1);
+            token::direct_transfer(account, account, token_id, 1);
+            nft_sale.next_id = nft_sale.next_id + 1;
+            i= i + 1;
+        };
 
         // Update total sold
-        nft_sale.total_sold += quantity;
+        nft_sale.total_sold = nft_sale.total_sold + quantity;
     }
 
     // Function to view current NFT sale status
     public fun view_nft_sale_status(owner: address): (u64, u64, u64, u64, u64) acquires NFTForSale {
         let nft_sale = borrow_global<NFTForSale>(owner);
-        (nft_sale.next_id, nft_sale.total_sold, nft_sale.total_supply, nft_sale.max_nfts_per_tx, nft_sale.price)
+        (nft_sale.next_id, nft_sale.total_sold, nft_sale.total_supply, nft_sale.max_nfts_per_tx, nft_sale.price_per_nft)
     }
 
     // Function to modify the price per NFT
@@ -132,7 +197,7 @@ module Dropspace::NFTSale {
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
 
         let now = timestamp::now_microseconds();
-        if nft_sale.sale_start <= now {
+        if (nft_sale.sale_start <= now) {
             nft_sale.sale_start = UINT64_MAX;
         } else {
             nft_sale.sale_start = 0;
@@ -159,7 +224,7 @@ module Dropspace::NFTSale {
         let test_account = signer::create_signer(@0x1);
 
         // Call init_nft_sale with test parameters
-        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri".to_vec(), @0x2, @0x3);
+        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri", @0x2, @0x3);
 
         // Assertions to check if the sale was initialized correctly
         let nft_sale = borrow_global<NFTForSale>(@0x3);
@@ -169,7 +234,7 @@ module Dropspace::NFTSale {
         assert!(nft_sale.max_nfts_per_tx == 5);
         assert!(nft_sale.price_per_nft == 1000);
         assert!(nft_sale.sale_start == 0);
-        assert!(nft_sale.base_uri == b"test_uri".to_vec());
+        assert!(nft_sale.base_uri == b"test_uri");
         assert!(nft_sale.dev_wallet == @0x2);
         assert!(nft_sale.owner_wallet == @0x3);
     }
@@ -181,7 +246,7 @@ module Dropspace::NFTSale {
         let test_account = signer::create_signer(@0x1);
 
         // Initialize NFT sale
-        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri".to_vec(), @0x2, @0x3);
+        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri", @0x2, @0x3);
    
         // Attempt to purchase NFTs
         purchase_nft(&test_account, @0x1, 1);
@@ -193,13 +258,13 @@ module Dropspace::NFTSale {
         assert!(nft_sale.max_nfts_per_tx == 5);
         assert!(nft_sale.price_per_nft == 1000);
         assert!(nft_sale.sale_start == 0);
-        assert!(nft_sale.base_uri == b"test_uri".to_vec());
+        assert!(nft_sale.base_uri == b"test_uri");
         assert!(nft_sale.dev_wallet == @0x2);
         assert!(nft_sale.owner_wallet == @0x3);
 
         // Assertions that wallets received the payment
-        assert!(coin::balance<Coin>(@0x3) == 1000);
-        assert!(coin::balance<Coin>(@0x2) == 125000);
+        assert!(coin::balance<AptosCoin>(@0x3) == 1000);
+        assert!(coin::balance<AptosCoin>(@0x2) == 125000);
     }
 
     // Test modification of the owner wallet
@@ -209,7 +274,7 @@ module Dropspace::NFTSale {
         let test_account = signer::create_signer(@0x1);
 
         // Initialize NFT sale
-        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri".to_vec(), @0x2, @0x3);
+        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri", @0x2, @0x3);
 
         // Modify the owner wallet
         modify_owner_wallet(&test_account, @0x1, @0x4);
