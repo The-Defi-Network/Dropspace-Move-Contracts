@@ -84,7 +84,7 @@ module dropspace::NFTForSale {
     }
 
     // Purchase NFTs
-    public fun purchase_nft(account: &signer, owner: address, quantity: u64) acquires NFTForSale {
+    public entry fun purchase_nft(account: &signer, owner: address, quantity: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
 
         // Validate purchase conditions
@@ -150,27 +150,28 @@ module dropspace::NFTForSale {
     }
 
     // Function to view current NFT sale status
+    #[view]
     public fun view_nft_sale_status(owner: address): (u64, u64, u64, u64, u64) acquires NFTForSale {
         let nft_sale = borrow_global<NFTForSale>(owner);
         (nft_sale.next_id, nft_sale.total_sold, nft_sale.total_supply, nft_sale.max_nfts_per_tx, nft_sale.price_per_nft)
     }
 
     // Function to modify the price per NFT
-    public fun modify_price_per_nft(account: &signer, owner: address, new_price: u64) acquires NFTForSale {
+    public entry fun modify_price_per_nft(account: &signer, owner: address, new_price: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.price_per_nft = new_price;
     }
 
     // Function to modify the max NFTs per transaction
-    public fun modify_max_nfts_per_tx(account: &signer, owner: address, new_max: u64) acquires NFTForSale {
+    public entry fun modify_max_nfts_per_tx(account: &signer, owner: address, new_max: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.max_nfts_per_tx = new_max;
     }
 
     // Function to modify the total supply
-    public fun modify_total_supply(account: &signer, owner: address, new_total_supply: u64) acquires NFTForSale {
+    public entry fun modify_total_supply(account: &signer, owner: address, new_total_supply: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         assert!(new_total_supply >= nft_sale.total_sold, ERROR_INVALID_TOTAL_SUPPLY); // Invalid total supply
@@ -178,21 +179,21 @@ module dropspace::NFTForSale {
     }
 
     // Function to modify the sale start time
-    public fun modify_sale_start(account: &signer, owner: address, new_start: u64) acquires NFTForSale {
+    public entry fun modify_sale_start(account: &signer, owner: address, new_start: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.sale_start = new_start;
     }
 
     // Function to modify the base URI
-    public fun modify_base_uri(account: &signer, owner: address, new_base_uri: vector<u8>) acquires NFTForSale {
+    public entry fun modify_base_uri(account: &signer, owner: address, new_base_uri: vector<u8>) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.base_uri = new_base_uri;
     }
 
     // Toggle function for sale_start
-    public fun toggle_sale_start(account: &signer, owner: address) acquires NFTForSale {
+    public entry fun toggle_sale_start(account: &signer, owner: address) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
 
@@ -205,7 +206,7 @@ module dropspace::NFTForSale {
     }
 
     // Function to modify the owner wallet
-    public fun modify_owner_wallet(account: &signer, owner: address, new_owner_wallet: address) acquires NFTForSale {
+    public entry fun modify_owner_wallet(account: &signer, owner: address, new_owner_wallet: address) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
 
         // Ensure only the contract owner can modify the owner wallet

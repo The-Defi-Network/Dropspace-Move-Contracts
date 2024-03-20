@@ -22,7 +22,7 @@ module dropspace::CandyMachine {
         });
     }
 
-    public fun create_nft_sale(
+    public entry fun create_nft_sale(
         account: &signer,
         total_supply: u64,
         max_nfts_per_tx: u64,
@@ -51,6 +51,7 @@ module dropspace::CandyMachine {
         vector::push_back(&mut candy_machine.nft_sales, signer::address_of(&resource));
     }
 
+    #[view]
     public fun get_nft_sales(account: address): vector<address> acquires CandyMachine {
         let candy_machine = borrow_global<CandyMachine>(account);
         candy_machine.nft_sales
