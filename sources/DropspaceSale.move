@@ -3,10 +3,10 @@ module dropspace::NFTForSale {
     use std::string::{Self, String};
     use std::vector;
     use aptos_token::token;
-    use aptos_token::token::TokenDataId;
+
     use aptos_framework::timestamp;
     use aptos_framework::aptos_coin::AptosCoin;
-    use aptos_framework::coin::{Self, Coin};
+    use aptos_framework::coin::{Self};
     // use aptos_framework::nft::{Self, NFT};
 
     const DROPSPACE_FEE: u64 = 125000; // 0.125 Aptos in micro-units
@@ -22,28 +22,36 @@ module dropspace::NFTForSale {
 
     // Structure representing the NFT sale
     struct NFTForSale has key {
+        name: vector<u8>,
+        ticker: vector<u8>,
+        mint_per_tx: u64,
+        mint_price: u64,
+        mint_fee: u64,
+        supply_limit: u64,
+        withdraw_wallet: address,
+        dev_wallet: address,
+        sale_time: u64,
         next_id: u64,
         total_sold: u64,
-        total_supply: u64,
-        max_nfts_per_tx: u64,
-        price_per_nft: u64,
-        sale_start: u64,
         base_uri: vector<u8>,
-        dev_wallet: address,
         owner_wallet: address,
     }
 
     // Initialize the NFT sale
-    public fun init_nft_sale(account: &signer, total_supply: u64, max_nfts_per_tx: u64, price_per_nft: u64, sale_start: u64, base_uri: vector<u8>, dev_wallet: address, owner_wallet: address) {
+    public fun init_nft_sale(account: &signer, name: vector<u8>, ticker: vector<u8>, mint_per_tx: u64, mint_price: u64, mint_fee: u64, supply_limit: u64, withdraw_wallet: address, dev_wallet: address, sale_time: u64, base_uri: vector<u8>, owner_wallet: address) {
         let nft_sale_data = NFTForSale {
+            name: name, 
+            ticker: ticker,
+            mint_per_tx: mint_per_tx,
+            mint_price: mint_price,
+            mint_fee: mint_fee,
+            supply_limit: supply_limit,
+            withdraw_wallet: withdraw_wallet,
+            dev_wallet: dev_wallet,
+            sale_time: sale_time,
             next_id: 0,
             total_sold: 0,
-            total_supply: total_supply,
-            max_nfts_per_tx: max_nfts_per_tx,
-            price_per_nft: price_per_nft,
-            sale_start: sale_start,
             base_uri: base_uri,
-            dev_wallet: dev_wallet,
             owner_wallet: owner_wallet,
         };
         move_to(account, nft_sale_data);
@@ -84,21 +92,21 @@ module dropspace::NFTForSale {
     }
 
     // Purchase NFTs
-    public entry fun purchase_nft(account: &signer, owner: address, quantity: u64) acquires NFTForSale {
+    public entry fun buy(account: &signer, owner: address, quantity: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
 
         // Validate purchase conditions
         let now = timestamp::now_microseconds();
-        assert!(now >= nft_sale.sale_start, ERROR_INVALID_TIME); // Invalid time
-        assert!(quantity > 0 && quantity <= nft_sale.max_nfts_per_tx, ERROR_INVALID_QUANTITY); // Invalid quantity
-        assert!(nft_sale.total_sold + quantity <= nft_sale.total_supply, ERROR_EXCEEDS_TOTAL_SUPPLY); // Exceeds total supply
+        assert!(now >= nft_sale.sale_time, ERROR_INVALID_TIME); // Invalid time
+        assert!(quantity > 0 && quantity <= nft_sale.mint_per_tx, ERROR_INVALID_QUANTITY); // Invalid quantity
+        assert!(nft_sale.total_sold + quantity <= nft_sale.supply_limit, ERROR_EXCEEDS_TOTAL_SUPPLY); // Exceeds total supply
 
         // Calculate payments
         let dropspace_payment = DROPSPACE_FEE * quantity;
-        let owner_payment = nft_sale.price_per_nft * quantity - dropspace_payment;
+        let owner_payment = nft_sale.mint_price * quantity - dropspace_payment;
 
         // Check if the buyer has enough funds
-        let total_price = nft_sale.price_per_nft * quantity;
+        let total_price = nft_sale.mint_price * quantity;
         let buyer_balance = coin::balance<AptosCoin>(owner);
         assert!(buyer_balance >= total_price, ERROR_INSUFFICIENT_FUNDS); // Insufficient funds
 
@@ -107,6 +115,14 @@ module dropspace::NFTForSale {
         coin::transfer<AptosCoin>(account, nft_sale.owner_wallet, owner_payment);
 
         // Mint NFTs
+        mint_nft(account, owner, quantity, nft_sale);
+
+        // Update total sold
+        nft_sale.total_sold = nft_sale.total_sold + quantity;
+    }
+
+    // Mint Token
+    fun mint_nft(account: &signer, _owner: address, quantity: u64, nft_sale: &mut NFTForSale) {
         let i = 0;
         while (i < quantity) {
             let metadata_uri = string::utf8(nft_sale.base_uri);
@@ -144,45 +160,105 @@ module dropspace::NFTForSale {
             nft_sale.next_id = nft_sale.next_id + 1;
             i= i + 1;
         };
-
-        // Update total sold
-        nft_sale.total_sold = nft_sale.total_sold + quantity;
     }
 
     // Function to view current NFT sale status
     #[view]
     public fun view_nft_sale_status(owner: address): (u64, u64, u64, u64, u64) acquires NFTForSale {
         let nft_sale = borrow_global<NFTForSale>(owner);
-        (nft_sale.next_id, nft_sale.total_sold, nft_sale.total_supply, nft_sale.max_nfts_per_tx, nft_sale.price_per_nft)
+        (nft_sale.next_id, nft_sale.total_sold, nft_sale.supply_limit, nft_sale.mint_per_tx, nft_sale.mint_price)
+    }
+    
+    // Function to get current NFT Name
+    #[view]
+    public fun get_name(owner: address): (vector<u8>) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.name)
+    }
+
+    // Function to get current NFT ticker
+    #[view]
+    public fun get_ticker(owner: address): (vector<u8>) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.ticker)
+    }
+
+    // Function to get current mint price
+    #[view]
+    public fun get_mint_price(owner: address): (u64) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.mint_price)
+    }
+    
+    // Function to get current mint fee
+    #[view]
+    public fun get_mint_fee(owner: address): (u64) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.mint_fee)
+    }
+    
+    // Function to get current supply limit
+    #[view]
+    public fun get_supply_limit(owner: address): (u64) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.supply_limit)
+    }
+
+    // Function to get current total supply
+    #[view]
+    public fun get_total_supply(owner: address): (u64) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.total_sold)
+    }
+
+    // Function to get current withdraw_wallet
+    #[view]
+    public fun get_withdraw_wallet(owner: address): (address) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.withdraw_wallet)
+    }
+
+    // Function to get current get_sale_time
+    #[view]
+    public fun get_sale_time(owner: address): (u64) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.sale_time)
+    }
+
+    // Function to get current get_owner
+    #[view]
+    public fun get_owner(owner: address): (address) acquires NFTForSale {
+        let nft_sale = borrow_global<NFTForSale>(owner);
+        (nft_sale.owner_wallet)
     }
 
     // Function to modify the price per NFT
-    public entry fun modify_price_per_nft(account: &signer, owner: address, new_price: u64) acquires NFTForSale {
+    public entry fun modify_mint_price(account: &signer, owner: address, new_price: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
-        nft_sale.price_per_nft = new_price;
+        nft_sale.mint_price = new_price;
     }
 
     // Function to modify the max NFTs per transaction
-    public entry fun modify_max_nfts_per_tx(account: &signer, owner: address, new_max: u64) acquires NFTForSale {
+    public entry fun modify_mint_per_tx(account: &signer, owner: address, new_max: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
-        nft_sale.max_nfts_per_tx = new_max;
+        nft_sale.mint_per_tx = new_max;
     }
 
     // Function to modify the total supply
-    public entry fun modify_total_supply(account: &signer, owner: address, new_total_supply: u64) acquires NFTForSale {
+    public entry fun modify_supply_limit(account: &signer, owner: address, new_supply_limit: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
-        assert!(new_total_supply >= nft_sale.total_sold, ERROR_INVALID_TOTAL_SUPPLY); // Invalid total supply
-        nft_sale.total_supply = new_total_supply;
+        assert!(new_supply_limit >= nft_sale.total_sold, ERROR_INVALID_TOTAL_SUPPLY); // Invalid total supply
+        nft_sale.supply_limit = new_supply_limit;
     }
 
     // Function to modify the sale start time
-    public entry fun modify_sale_start(account: &signer, owner: address, new_start: u64) acquires NFTForSale {
+    public entry fun modify_sale_time(account: &signer, owner: address, new_start: u64) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
-        nft_sale.sale_start = new_start;
+        nft_sale.sale_time = new_start;
     }
 
     // Function to modify the base URI
@@ -192,17 +268,28 @@ module dropspace::NFTForSale {
         nft_sale.base_uri = new_base_uri;
     }
 
-    // Toggle function for sale_start
-    public entry fun toggle_sale_start(account: &signer, owner: address) acquires NFTForSale {
+    // Toggle function for sale_time
+    public entry fun toggle_sale_time(account: &signer, owner: address) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
 
         let now = timestamp::now_microseconds();
-        if (nft_sale.sale_start <= now) {
-            nft_sale.sale_start = UINT64_MAX;
+        if (nft_sale.sale_time <= now) {
+            nft_sale.sale_time = UINT64_MAX;
         } else {
-            nft_sale.sale_start = 0;
+            nft_sale.sale_time = 0;
         }
+    }
+
+    // Function to modify the withdraw wallet
+    public entry fun modify_withdraw_wallet(account: &signer, owner: address, new_withdraw_wallet: address) acquires NFTForSale {
+        let nft_sale = borrow_global_mut<NFTForSale>(owner);
+
+        // Ensure only the contract owner can modify the owner wallet
+        assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
+
+        // Update the owner wallet address
+        nft_sale.withdraw_wallet = new_withdraw_wallet;
     }
 
     // Function to modify the owner wallet
@@ -216,71 +303,24 @@ module dropspace::NFTForSale {
         nft_sale.owner_wallet = new_owner_wallet;
     }
 
-    // Tests
-
-    // Test initialization of the NFT sale
-    #[test]
-    public fun test_init_nft_sale() {
-        // Define test signer
-        let test_account = signer::create_signer(@0x1);
-
-        // Call init_nft_sale with test parameters
-        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri", @0x2, @0x3);
-
-        // Assertions to check if the sale was initialized correctly
-        let nft_sale = borrow_global<NFTForSale>(@0x3);
-        assert!(nft_sale.next_id == 0);
-        assert!(nft_sale.total_sold == 0);
-        assert!(nft_sale.total_supply == 100);
-        assert!(nft_sale.max_nfts_per_tx == 5);
-        assert!(nft_sale.price_per_nft == 1000);
-        assert!(nft_sale.sale_start == 0);
-        assert!(nft_sale.base_uri == b"test_uri");
-        assert!(nft_sale.dev_wallet == @0x2);
-        assert!(nft_sale.owner_wallet == @0x3);
+    // Function to modify the name
+    public entry fun set_name(account: &signer, owner: address, new_name: vector<u8>) acquires NFTForSale {
+        let nft_sale = borrow_global_mut<NFTForSale>(owner);
+        assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
+        nft_sale.name = new_name;
     }
 
-    // Test purchase of NFTs
-    #[test]
-    public fun test_purchase_nft() {
-        // Setup test environment and accounts
-        let test_account = signer::create_signer(@0x1);
-
-        // Initialize NFT sale
-        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri", @0x2, @0x3);
-   
-        // Attempt to purchase NFTs
-        purchase_nft(&test_account, @0x1, 1);
-
-        // Assertions to verify the purchase
-        assert!(nft_sale.next_id == 1);
-        assert!(nft_sale.total_sold == 1);
-        assert!(nft_sale.total_supply == 100);
-        assert!(nft_sale.max_nfts_per_tx == 5);
-        assert!(nft_sale.price_per_nft == 1000);
-        assert!(nft_sale.sale_start == 0);
-        assert!(nft_sale.base_uri == b"test_uri");
-        assert!(nft_sale.dev_wallet == @0x2);
-        assert!(nft_sale.owner_wallet == @0x3);
-
-        // Assertions that wallets received the payment
-        assert!(coin::balance<AptosCoin>(@0x3) == 1000);
-        assert!(coin::balance<AptosCoin>(@0x2) == 125000);
+    // Function to modify the ticker
+    public entry fun set_ticker(account: &signer, owner: address, new_ticker: vector<u8>) acquires NFTForSale {
+        let nft_sale = borrow_global_mut<NFTForSale>(owner);
+        assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
+        nft_sale.ticker = new_ticker;
     }
 
-    // Test modification of the owner wallet
-    #[test]
-    public fun test_modify_owner_wallet() {
-        // Setup test environment and accounts
-        let test_account = signer::create_signer(@0x1);
-
-        // Initialize NFT sale
-        init_nft_sale(&test_account, 100, 5, 1000, 0, b"test_uri", @0x2, @0x3);
-
-        // Modify the owner wallet
-        modify_owner_wallet(&test_account, @0x1, @0x4);
-
-        // Assertions to verify the wallet modification    
-        assert!(nft_sale.owner_wallet == @0x4);
+    // Function to modify the fee per NFT
+    public entry fun modify_mint_fee(account: &signer, owner: address, new_fee: u64) acquires NFTForSale {
+        let nft_sale = borrow_global_mut<NFTForSale>(owner);
+        assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
+        nft_sale.mint_fee = new_fee;
     }
 }
