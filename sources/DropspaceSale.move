@@ -22,8 +22,8 @@ module dropspace::NFTForSale {
 
     // Structure representing the NFT sale
     struct NFTForSale has key {
-        name: vector<u8>,
-        ticker: vector<u8>,
+        name: String,
+        ticker: String,
         mint_per_tx: u64,
         mint_price: u64,
         mint_fee: u64,
@@ -33,12 +33,12 @@ module dropspace::NFTForSale {
         sale_time: u64,
         next_id: u64,
         total_sold: u64,
-        base_uri: vector<u8>,
+        base_uri: String,
         owner_wallet: address,
     }
 
     // Initialize the NFT sale
-    public fun init_nft_sale(account: &signer, name: vector<u8>, ticker: vector<u8>, mint_per_tx: u64, mint_price: u64, mint_fee: u64, supply_limit: u64, withdraw_wallet: address, dev_wallet: address, sale_time: u64, base_uri: vector<u8>, owner_wallet: address) {
+    public fun init_nft_sale(account: &signer, name: String, ticker: String, mint_per_tx: u64, mint_price: u64, mint_fee: u64, supply_limit: u64, withdraw_wallet: address, dev_wallet: address, sale_time: u64, base_uri: String, owner_wallet: address) {
         let nft_sale_data = NFTForSale {
             name: name, 
             ticker: ticker,
@@ -125,7 +125,7 @@ module dropspace::NFTForSale {
     fun mint_nft(account: &signer, _owner: address, quantity: u64, nft_sale: &mut NFTForSale) {
         let i = 0;
         while (i < quantity) {
-            let metadata_uri = string::utf8(nft_sale.base_uri);
+            let metadata_uri = nft_sale.base_uri;
             let mint_position = nft_sale.next_id;
             string::append(&mut metadata_uri,string::utf8(b"/"));
             string::append(&mut metadata_uri,string::utf8(num_str(mint_position)));
@@ -153,7 +153,7 @@ module dropspace::NFTForSale {
                 // when a user successfully mints a token in the `mint_nft()` function.
                 vector<String>[string::utf8(b"given_to")],
                 vector<vector<u8>>[b""],
-                vector<String>[ string::utf8(b"address") ],
+                vector<String>[string::utf8(b"address") ],
             );
             let token_id = token::mint_token(account, token_data_id, 1);
             token::direct_transfer(account, account, token_id, 1);
@@ -171,14 +171,14 @@ module dropspace::NFTForSale {
     
     // Function to get current NFT Name
     #[view]
-    public fun get_name(owner: address): (vector<u8>) acquires NFTForSale {
+    public fun get_name(owner: address): (String) acquires NFTForSale {
         let nft_sale = borrow_global<NFTForSale>(owner);
         (nft_sale.name)
     }
 
     // Function to get current NFT ticker
     #[view]
-    public fun get_ticker(owner: address): (vector<u8>) acquires NFTForSale {
+    public fun get_ticker(owner: address): (String) acquires NFTForSale {
         let nft_sale = borrow_global<NFTForSale>(owner);
         (nft_sale.ticker)
     }
@@ -262,7 +262,7 @@ module dropspace::NFTForSale {
     }
 
     // Function to modify the base URI
-    public entry fun modify_base_uri(account: &signer, owner: address, new_base_uri: vector<u8>) acquires NFTForSale {
+    public entry fun modify_base_uri(account: &signer, owner: address, new_base_uri: String) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.base_uri = new_base_uri;
@@ -304,14 +304,14 @@ module dropspace::NFTForSale {
     }
 
     // Function to modify the name
-    public entry fun set_name(account: &signer, owner: address, new_name: vector<u8>) acquires NFTForSale {
+    public entry fun set_name(account: &signer, owner: address, new_name: String) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.name = new_name;
     }
 
     // Function to modify the ticker
-    public entry fun set_ticker(account: &signer, owner: address, new_ticker: vector<u8>) acquires NFTForSale {
+    public entry fun set_ticker(account: &signer, owner: address, new_ticker: String) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(owner);
         assert!(signer::address_of(account) == owner, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.ticker = new_ticker;

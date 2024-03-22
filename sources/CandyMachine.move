@@ -1,11 +1,10 @@
 module dropspace::CandyMachine {
     use std::vector;
-
     use std::signer::{Self};
+    use std::string::{Self, String};
     use aptos_framework::account;
-
-
     use dropspace::NFTForSale::{Self};
+        
 
     struct CandyMachine has key {
         nft_sales: vector<address>, // Addresses of NFTSale contracts
@@ -24,8 +23,8 @@ module dropspace::CandyMachine {
 
     public entry fun create_nft_sale(
         account: &signer,
-        name: vector<u8>,
-        ticker: vector<u8>,
+        name: String,
+        ticker: String,
         mint_per_tx: u64,
         mint_price: u64,
         mint_fee: u64,
@@ -33,7 +32,7 @@ module dropspace::CandyMachine {
         withdraw_wallet: address,
         dev_wallet: address,
         sale_time: u64,
-        base_uri: vector<u8>,
+        base_uri: String,
         owner_wallet: address,
         seeds: vector<u8> // Unique seed for each NFT sale
     ) acquires CandyMachine {
