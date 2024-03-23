@@ -33,7 +33,6 @@ module dropspace::CandyMachine {
         dev_wallet: address,
         sale_time: u64,
         base_uri: String,
-        owner_wallet: address,
         seeds: vector<u8> // Unique seed for each NFT sale
     ) acquires CandyMachine {
         let (resource, resource_cap) = account::create_resource_account(account, seeds);
@@ -51,7 +50,6 @@ module dropspace::CandyMachine {
             dev_wallet,
             sale_time,
             base_uri,
-            owner_wallet,
         );
 
         let candy_machine = borrow_global_mut<CandyMachine>(signer::address_of(account));
