@@ -4,7 +4,6 @@ module dropspace::CandyMachine {
     use std::string::{Self, String};
     use aptos_framework::account;
     use dropspace::NFTForSale::{Self};
-        
 
     struct CandyMachine has key {
         nft_sales: vector<address>, // Addresses of NFTSale contracts
@@ -16,9 +15,10 @@ module dropspace::CandyMachine {
     }
 
     public fun init_candy_machine(account: &signer) {
-        move_to(account, CandyMachine {
+        let candy_machine_data = CandyMachine {
             nft_sales: vector::empty(),
-        });
+        };
+        move_to(account, candy_machine_data);
     }
 
     public entry fun create_nft_sale(
@@ -57,38 +57,31 @@ module dropspace::CandyMachine {
     }
 
     #[view]
-    public fun get_nft_sales(account: address): vector<address> acquires CandyMachine {
-        let candy_machine = borrow_global<CandyMachine>(account);
+    public fun get_nft_sales(account: &signer): vector<address> acquires CandyMachine {
+        let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
         candy_machine.nft_sales
     }
 
     // Tests 
 
     // Test initialization of the CandyMachine
-    // #[test_only]
-    // public fun test_init_candy_machine(account: &signer) {
-    //     init_candy_machine(account);
-    //     let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
-    //     assert!(vector::length(&candy_machine.nft_sales) == 0, 0, b"CandyMachine should be initialized with empty sales vector");
-    // }
+    #[test(account = @0x1)]
+    public fun test_init_candy_machine(account: &signer) acquires CandyMachine {
+        init_candy_machine(account);
+        let candy_machine = borrow_global_mut<CandyMachine>(signer::address_of(account));
+        assert!(vector::length(&candy_machine.nft_sales) == 0, 0);
+    }
 
     // Test creating an NFT sale
-    // #[test_only]
-    // public fun test_create_nft_sale(account: &signer, mint_cap: &MintCapability) {
-    //     let seeds = vec!(240, 159, 146, 150);
-    //     let dev_wallet = @0x1;
-    //     let owner_wallet = @0x2;
+    #[test(account = @0x1)]
+    public fun test_create_nft_sale(account: &signer) acquires CandyMachine {
+        let seeds = vector<u8>[ 240, 159, 146, 150];
 
-    //     init_candy_machine(account);
-    //     create_nft_sale(account, 100, 5, 1000, 0, b"https://base.uri", dev_wallet, owner_wallet, seeds);
+        init_candy_machine(account);
+        create_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 10, 1, 100, @0x1, @0x111, 0, string::utf8(b"test_uri"), seeds);
 
-    //     let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
-    //     assert!(vector::length(&candy_machine.nft_sales) == 1, 1, b"One NFT sale should have been created");
-        
-    //     let nft_sale_address = *vector::borrow(&candy_machine.nft_sales, 0);
-    //     let nft_sale = borrow_global<NFTForSale>(nft_sale_address);
-    //     assert!(nft_sale.supply_limit == 100, 2, b"Total supply should be 100");
-    //     assert!(nft_sale.mint_per_tx == 5, 3, b"Max NFTs per tx should be 5");
-    //     assert!(nft_sale.mint_price == 1000, 4, b"Price per NFT should be 1000");
-    // }
+        let candy_machine = borrow_global_mut<CandyMachine>(signer::address_of(account));
+        assert!(vector::length(&candy_machine.nft_sales) == 1, 0);
+        let _nft_sale_address = *vector::borrow(&candy_machine.nft_sales, 0);
+    }
 }

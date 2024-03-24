@@ -203,7 +203,7 @@ module dropspace::NFTForSale {
         (nft_sale.mint_fee)
     }
 
-
+    #[view]
     public fun get_supply_limit(owner: address): (u64) acquires NFTForSale {
         let nft_sale = borrow_global<NFTForSale>(owner);
         (nft_sale.supply_limit)
@@ -391,5 +391,25 @@ module dropspace::NFTForSale {
         assert!(nft_sale.next_id == 1, 0);
     }
 
-    
+    #[test(account = @0x1, dev_wallet = @0x111)]
+    fun test_view_nft_sale_status(account: &signer, dev_wallet: &signer) acquires NFTForSale {
+        init_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 10, 1, 100, @0x1, signer::address_of(dev_wallet), 0, string::utf8(b"test_uri"));
+        let (next_id, total_sold, supply_limit, mint_per_tx, mint_price) = view_nft_sale_status(signer::address_of(account));
+        
+        assert!(next_id == 0, 0);
+        assert!(total_sold == 0, 0);
+        assert!(supply_limit == 100, 0);
+        assert!(mint_per_tx == 10, 0);
+        assert!(mint_price == 10, 0);
+
+    }
+
+    #[test(account = @0x1, dev_wallet = @0x111)]
+    fun test_modify_mint_fee(account: &signer, dev_wallet: &signer) acquires NFTForSale {
+        init_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 10, 1, 100, @0x1, signer::address_of(dev_wallet), 0, string::utf8(b"test_uri"));
+        modify_mint_fee(account, 1000);
+        let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
+        assert!(nft_sale.mint_fee == 1000, 0);
+    }
+
 }
