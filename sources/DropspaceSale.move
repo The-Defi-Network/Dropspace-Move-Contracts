@@ -9,6 +9,7 @@ module dropspace::NFTForSale {
     use aptos_framework::timestamp;
     use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::coin::{Self};
+    use aptos_framework::event;
 
     const DROPSPACE_FEE: u64 = 125000; // 0.125 Aptos in micro-units
     const UINT64_MAX: u64 = 18446744073709551615; // Max value of u64
@@ -35,6 +36,14 @@ module dropspace::NFTForSale {
         next_id: u64,
         total_sold: u64,
         base_uri: String,
+    }
+
+    #[event]
+    /// Event representing a change to the marketplace configuration
+    struct NFTForSaleEvent has drop, store {
+        account: address,
+        /// The type info of the struct that was updated.
+        updated_event: String,
     }
 
     // Initialize the NFT sale
@@ -242,6 +251,8 @@ module dropspace::NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.mint_price = new_price;
+        let updated_resource = string::utf8(b"modify_mint_price");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Function to modify the max NFTs per transaction
@@ -249,6 +260,8 @@ module dropspace::NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.mint_per_tx = new_max;
+        let updated_resource = string::utf8(b"modify_mint_per_tx");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Function to modify the total supply
@@ -257,6 +270,8 @@ module dropspace::NFTForSale {
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         assert!(new_supply_limit >= nft_sale.total_sold, ERROR_INVALID_TOTAL_SUPPLY); // Invalid total supply
         nft_sale.supply_limit = new_supply_limit;
+        let updated_resource = string::utf8(b"modify_supply_limit");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Function to modify the sale start time
@@ -264,6 +279,8 @@ module dropspace::NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.sale_time = new_start;
+        let updated_resource = string::utf8(b"modify_sale_time");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Function to modify the base URI
@@ -271,6 +288,8 @@ module dropspace::NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.base_uri = new_base_uri;
+        let updated_resource = string::utf8(b"modify_base_uri");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Toggle function for sale_time
@@ -295,19 +314,25 @@ module dropspace::NFTForSale {
 
         // Update the owner wallet address
         nft_sale.withdraw_wallet = new_withdraw_wallet;
+        let updated_resource = string::utf8(b"modify_withdraw_wallet");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
     // Function to modify the name
-    public entry fun set_name(account: &signer, new_name: String) acquires NFTForSale {
+    public entry fun modify_name(account: &signer, new_name: String) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.name = new_name;
+        let updated_resource = string::utf8(b"modify_name");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Function to modify the ticker
-    public entry fun set_ticker(account: &signer, new_ticker: String) acquires NFTForSale {
+    public entry fun modify_ticker(account: &signer, new_ticker: String) acquires NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.ticker = new_ticker;
+        let updated_resource = string::utf8(b"modify_ticker");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     // Function to modify the fee per NFT
@@ -315,6 +340,8 @@ module dropspace::NFTForSale {
         let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.mint_fee = new_fee;
+        let updated_resource = string::utf8(b"modify_mint_fee");
+        event::emit(NFTForSaleEvent { account: signer::address_of(account), updated_event: updated_resource});
     }
 
     #[test(account = @0x1)]
