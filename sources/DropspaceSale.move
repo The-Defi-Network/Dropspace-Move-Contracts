@@ -2,10 +2,12 @@ module dropspace::NFTForSale {
     use std::signer::{Self};
     use std::string::{Self, String};
     use std::vector;
-    use aptos_token::token;
+    use std::debug;
 
+    use aptos_token::token;
+    use aptos_framework::account;
     use aptos_framework::timestamp;
-    use aptos_framework::aptos_coin::AptosCoin;
+    use aptos_framework::aptos_coin::{Self, AptosCoin};
     use aptos_framework::coin::{Self};
 
     const DROPSPACE_FEE: u64 = 125000; // 0.125 Aptos in micro-units
@@ -99,17 +101,19 @@ module dropspace::NFTForSale {
         assert!(nft_sale.total_sold + quantity <= nft_sale.supply_limit, ERROR_EXCEEDS_TOTAL_SUPPLY); // Exceeds total supply
 
         // Calculate payments
-        let dropspace_payment = DROPSPACE_FEE * quantity;
+        let dropspace_payment = nft_sale.mint_fee * quantity;
         let owner_payment = nft_sale.mint_price * quantity - dropspace_payment;
-
+        debug::print(&owner_payment);
+        debug::print(&dropspace_payment);
         // Check if the buyer has enough funds
         let total_price = nft_sale.mint_price * quantity;
         let buyer_balance = coin::balance<AptosCoin>(signer::address_of(buyer));
+        debug::print(&buyer_balance);
         assert!(buyer_balance >= total_price, ERROR_INSUFFICIENT_FUNDS); // Insufficient funds
 
         // Transfer funds to dev wallet and owner wallet
-        coin::transfer<AptosCoin>(account, nft_sale.dev_wallet, dropspace_payment);
-        coin::transfer<AptosCoin>(account, nft_sale.withdraw_wallet, owner_payment);
+        coin::transfer<AptosCoin>(buyer, nft_sale.dev_wallet, dropspace_payment);
+        coin::transfer<AptosCoin>(buyer, nft_sale.withdraw_wallet, owner_payment);
 
         // Mint NFTs
         mint_nft(account, buyer, quantity, nft_sale);
@@ -121,6 +125,11 @@ module dropspace::NFTForSale {
     // Mint Token
     fun mint_nft(account: &signer, buyer: &signer, quantity: u64, nft_sale: &mut NFTForSale) {
         let i = 0;
+        //create collection
+        let mutate_setting = vector<bool>[ false, false, false ];
+        token::create_collection(account, nft_sale.ticker, string::utf8(b""), nft_sale.base_uri, nft_sale.supply_limit, mutate_setting);
+
+        //create mint for quantity
         while (i < quantity) {
             let metadata_uri = nft_sale.base_uri;
             let mint_position = nft_sale.next_id;
@@ -307,4 +316,80 @@ module dropspace::NFTForSale {
         assert!(signer::address_of(account) == nft_sale.withdraw_wallet, ERROR_UNAUTHORIZED); // Unauthorized
         nft_sale.mint_fee = new_fee;
     }
+
+    #[test(account = @0x1)]
+    fun test_init_for_sale(account: &signer) acquires NFTForSale {
+        init_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 1, 1, 100, @0x1, @0x111, 0, string::utf8(b"test_uri"));
+
+        let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
+
+        assert!(nft_sale.next_id == 0, 0);
+        assert!(nft_sale.total_sold == 0, 0);
+        assert!(nft_sale.supply_limit == 100, 0);
+        assert!(nft_sale.mint_per_tx == 10, 0);
+        assert!(nft_sale.mint_price == 1, 0);
+        assert!(nft_sale.sale_time == 0, 0);
+        assert!(nft_sale.base_uri == string::utf8(b"test_uri"), 0);
+        assert!(nft_sale.dev_wallet == @0x111,0 );
+        assert!(nft_sale.withdraw_wallet == @0x1, 0);
+        assert!(nft_sale.name == string::utf8(b"test_name"), 0);
+        assert!(nft_sale.ticker == string::utf8(b"test_ticker"), 0);
+    }
+
+    #[test_only]
+    public inline fun setup(
+        owner: &signer,
+        seller: &signer,
+        dev_wallet: &signer
+    ): (address, address, address) {
+        timestamp::set_time_has_started_for_testing(owner);
+        let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(owner);
+
+        let owner_addr = signer::address_of(owner);
+        account::create_account_for_test(owner_addr);
+        coin::register<AptosCoin>(owner);
+
+        //create for dev wallet 
+
+        let dev_wallet_addr = signer::address_of(dev_wallet);
+        account::create_account_for_test(dev_wallet_addr);
+        coin::register<AptosCoin>(dev_wallet);
+
+        let seller_addr = signer::address_of(seller);
+        account::create_account_for_test(seller_addr);
+        coin::register<AptosCoin>(seller);
+
+
+        let coins = coin::mint(10000, &mint_cap);
+        coin::deposit(seller_addr, coins);
+
+        // let coins = coin::mint(10000, &mint_cap);
+        // coin::deposit(owner_addr, coins);
+
+        coin::destroy_burn_cap(burn_cap);
+        coin::destroy_mint_cap(mint_cap);
+
+        (owner_addr, seller_addr, dev_wallet_addr)
+    }
+
+    #[test(account = @0x1, seller = @0x222, dev_wallet = @0x111)]
+    fun test_buy(account: &signer, seller: &signer, dev_wallet: &signer) acquires NFTForSale {
+        init_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 10, 1, 100, @0x1, signer::address_of(dev_wallet), 0, string::utf8(b"test_uri"));
+        let (_, _, _) = setup(account, seller, dev_wallet);
+        buy(account, seller, 1);
+        let nft_sale = borrow_global_mut<NFTForSale>(signer::address_of(account));
+
+        //get for funds dev_wallet_balance
+        let dev_wallet_balance = coin::balance<AptosCoin>(nft_sale.dev_wallet);
+        assert!(dev_wallet_balance == 1, 0);
+        
+        //get for funds owner_wallet_balance
+        let withdraw_wallet_balance = coin::balance<AptosCoin>(nft_sale.withdraw_wallet);
+        assert!(withdraw_wallet_balance == 9, 0);
+
+        //get for assert funds
+        assert!(nft_sale.next_id == 1, 0);
+    }
+
+    
 }
