@@ -4,7 +4,7 @@ version = "1.0.0"
 authors = []
 
 [addresses]
-dropspace="4ba102cb3dbad5204e2bb4d6625cb05bf01ce55f512762ace9169bf04155d32b"
+dropspace="b1a51a62b2e7a753e7888a91b3fdf14496cbbc657d3b6905ba6c66c178c93d21"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

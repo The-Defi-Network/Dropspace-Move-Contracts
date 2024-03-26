@@ -62,6 +62,9 @@ module dropspace::NFTForSale {
             total_sold: 0,
             base_uri: base_uri,
         };
+           //create collection
+        let mutate_setting = vector<bool>[ false, false, false ];
+        token::create_collection(account, ticker, string::utf8(b""), base_uri, supply_limit, mutate_setting);
         move_to(account, nft_sale_data);
     }
 
@@ -134,9 +137,7 @@ module dropspace::NFTForSale {
     // Mint Token
     fun mint_nft(account: &signer, buyer: &signer, quantity: u64, nft_sale: &mut NFTForSale) {
         let i = 0;
-        //create collection
-        let mutate_setting = vector<bool>[ false, false, false ];
-        token::create_collection(account, nft_sale.ticker, string::utf8(b""), nft_sale.base_uri, nft_sale.supply_limit, mutate_setting);
+     
 
         //create mint for quantity
         while (i < quantity) {

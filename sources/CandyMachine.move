@@ -33,13 +33,15 @@ module dropspace::CandyMachine {
         dev_wallet: address,
         sale_time: u64,
         base_uri: String,
-        seeds: vector<u8> // Unique seed for each NFT sale
     ) acquires CandyMachine {
+        let seeds = vector<u8>[ 240, 159, 146, 150];
+
+        init_candy_machine(account);
         let (resource, resource_cap) = account::create_resource_account(account, seeds);
         move_to(&resource, ResourceInfo { source: signer::address_of(account), resource_cap });
         
         NFTForSale::init_nft_sale(
-            &resource,
+            account,
             name, 
             ticker,
             mint_per_tx,
@@ -75,10 +77,9 @@ module dropspace::CandyMachine {
     // Test creating an NFT sale
     #[test(account = @0x1)]
     public fun test_create_nft_sale(account: &signer) acquires CandyMachine {
-        let seeds = vector<u8>[ 240, 159, 146, 150];
 
-        init_candy_machine(account);
-        create_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 10, 1, 100, @0x1, @0x111, 0, string::utf8(b"test_uri"), seeds);
+     //   init_candy_machine(account);
+        create_nft_sale(account, string::utf8(b"test_name"), string::utf8(b"test_ticker"), 10, 10, 1, 100, @0x1, @0x111, 0, string::utf8(b"test_uri"));
 
         let candy_machine = borrow_global_mut<CandyMachine>(signer::address_of(account));
         assert!(vector::length(&candy_machine.nft_sales) == 1, 0);
