@@ -3,11 +3,9 @@ module dropspace::NFTForSale {
     use std::string::{Self, String};
     use std::vector;
     use std::debug;
-
     use aptos_token::token;
-    use aptos_framework::account;
     use aptos_framework::timestamp;
-    use aptos_framework::aptos_coin::{Self, AptosCoin};
+    use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::coin::{Self};
     use aptos_framework::event;
 

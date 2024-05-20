@@ -1,7 +1,7 @@
 module dropspace::CandyMachine {
     use std::vector;
     use std::signer::{Self};
-    use std::string::{Self, String};
+    use std::string::{String};
     use aptos_framework::account;
     use dropspace::NFTForSale::{Self};
 
@@ -59,8 +59,8 @@ module dropspace::CandyMachine {
     }
 
     #[view]
-    public fun get_nft_sales(account: &signer): vector<address> acquires CandyMachine {
-        let candy_machine = borrow_global<CandyMachine>(signer::address_of(account));
+    public fun get_nft_sales(account: address): vector<address> acquires CandyMachine {
+        let candy_machine = borrow_global<CandyMachine>(account);
         candy_machine.nft_sales
     }
 
